@@ -4,11 +4,30 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+console.log(
+  "GROQ KEY:",
+  process.env.GROQ_API_KEY ? "Found ✅" : "Missing ❌"
+);
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// Root Route
+app.get("/", (req, res) => {
+  res.send("Backend is running ✅");
+});
+
+// Health Check
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Server is healthy",
+  });
+});
+
+// Chat Route
 app.post("/chat", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -16,6 +35,12 @@ app.post("/chat", async (req, res) => {
     if (!prompt) {
       return res.status(400).json({
         reply: "Prompt is required.",
+      });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({
+        reply: "GROQ_API_KEY is missing.",
       });
     }
 
@@ -32,8 +57,7 @@ app.post("/chat", async (req, res) => {
           messages: [
             {
               role: "system",
-              content:
-                `
+              content: `
 You are an AI Crowd Management Assistant for the FIFA World Cup 2026.
 
 Rules:
@@ -58,9 +82,9 @@ Rules:
 
     const data = await response.json();
 
-    console.log("Groq Response:", JSON.stringify(data, null, 2));
-
     if (!response.ok) {
+      console.error(data);
+
       return res.status(response.status).json({
         reply: data.error?.message || "Groq API Error",
       });
@@ -72,7 +96,7 @@ Rules:
         "No response received from AI.",
     });
   } catch (error) {
-    console.error("Server Error:", error);
+    console.error(error);
 
     res.status(500).json({
       reply: error.message,
@@ -83,8 +107,5 @@ Rules:
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
-app.get("/", (req, res) => {
-  res.send("Backend is running ✅");
+  console.log(`🚀 Server running on port ${PORT}`);
 });
